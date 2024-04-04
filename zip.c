@@ -139,5 +139,81 @@ void write_code(int fd, char *dictionary[], char *s)
 /* compress in_file_name to out_file_name */
 void compress(char *in_file_name, char *out_file_name)
 {
-    return;
+	int in_fd= open(in_file_name, O_RDONLY);
+	if (in_fd==-1)
+	{
+		perror("open");
+		exit(1);
+	}
+
+	int out_fd= open(out_file_name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (out_fd == -1)
+	{
+		perror("open");
+		close(in_fd);
+		exit(1);
+	}
+
+	char *dictionary[NUM_CODES];
+	for (int i= 0; i< 256; i++)
+	{
+		char *str= (char *)malloc(2 * sizeof(char));
+		str[0]= (char)i;
+		str[1]= '\0';
+		dictionary[i]= str;
+	}
+	for (int i= 256; i< NUM_CODES; i++)
+	{
+		dictionary[i]= NULL;
+	}
+
+	char *CurrentString= (char *)malloc(2 * sizeof(char));
+	size_t bytes_read= read(in_fd, CurrentString, 1);
+	if (bytes_read== -1)
+	{
+		perror("reddddd");
+		close(in_fd);
+		close(out_fd);
+		exit(1);
+	}
+	CurrentString[1] = '\0';
+
+	char CurrentChar;
+	while (read(in_fd, &CurrentChar, 1)>0)
+	{
+		char *combined = strappend_char(CurrentString, CurrentChar);
+		unsigned int code = find_encoding(dictionary, combined);
+		if (code != NUM_CODES)
+		{
+			strcpy(CurrentString, combined);
+			free(combined);
+		
+		}
+		else
+		{
+			write_code(out_fd, dictionary, CurrentString);
+			for (int i= 0; i< NUM_CODES; i++)
+			{
+				if (dictionary[i] == NULL)
+				{
+					dictionary[i] = combined;
+					break;
+				}
+			}
+			free(CurrentString);
+			CurrentString= (char *)malloc(2 * sizeof(char));
+			CurrentString[0]= CurrentChar;
+			CurrentString[1]= '\0';
+		}
+	}
+
+	write_code(out_fd, dictionary, CurrentString);
+
+	for (int i= 0; i< NUM_CODES; i++)
+	{
+		free(dictionary[i]);
+	}
+	close(in_fd);
+	close(out_fd);
 }
+
